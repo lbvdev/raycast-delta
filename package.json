@@ -1,0 +1,76 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "delta",
+  "title": "Delta",
+  "description": "Search, create and ask about your Delta threads",
+  "icon": "icon.png",
+  "author": "lbv",
+  "categories": [
+    "Developer Tools",
+    "Productivity"
+  ],
+  "platforms": [
+    "macOS"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "search-threads",
+      "title": "Search Threads",
+      "subtitle": "Delta",
+      "description": "Search your Delta threads and open, share or archive them",
+      "mode": "view"
+    },
+    {
+      "name": "create-thread",
+      "title": "Create Thread",
+      "subtitle": "Delta",
+      "description": "Create a Delta thread with a draft prompt and open it in Delta",
+      "mode": "view"
+    },
+    {
+      "name": "open-with-delta",
+      "title": "Open with Delta",
+      "subtitle": "Delta",
+      "description": "Open the selected Finder item or the current Finder folder in Delta",
+      "mode": "no-view"
+    },
+    {
+      "name": "ask-past-threads",
+      "title": "Ask Past Threads",
+      "subtitle": "Delta",
+      "description": "Answer a question from your past Delta threads",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "question",
+          "type": "text",
+          "placeholder": "Question",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^2.12.0",
+    "@raycast/utils": "^2.3.3"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.2.0",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "eslint": "^10.14.0",
+    "prettier": "^3.10.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
