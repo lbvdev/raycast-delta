@@ -377,8 +377,8 @@ export async function runDemoCommand(args: string[]): Promise<string> {
   if (group === "update") {
     return JSON.stringify({
       status: "up_to_date",
-      current_version: "0.25.0",
-      latest_version: "0.25.0",
+      current_version: "0.26.0",
+      latest_version: "0.26.0",
       can_install: true,
     });
   }
