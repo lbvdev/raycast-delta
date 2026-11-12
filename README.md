@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../assets/icon.png" width="128" height="128" alt="Delta">
+  <img src="assets/icon.png" width="128" height="128" alt="Delta">
 </p>
 
 <h1 align="center">Delta for Raycast</h1>
@@ -9,13 +9,17 @@
 </p>
 
 <p align="center">
-  <a href="https://delta.dev"><img src="badges/delta.svg" height="28" alt="Delta"></a>
-  <a href="https://www.raycast.com"><img src="badges/raycast.svg" height="28" alt="Raycast Extension"></a>
+  <a href="https://delta.dev"><img src=".github/badges/delta.svg" height="28" alt="Delta"></a>
+  <a href="https://www.raycast.com"><img src=".github/badges/raycast.svg" height="28" alt="Raycast Extension"></a>
 </p>
 
-<p align="center" opacity="0.5"><sub>──── Tested on Delta 0.25 ────</sub></p>
+<p align="center"><sub>──── Tested on Delta 0.25 ────</sub></p>
 
 <!-- add a screenshot -->
+
+## Requirements
+
+Delta installed and signed in. Nothing else to set up.
 
 ## Commands
 
@@ -27,6 +31,12 @@
 | Ask Past Threads | Ask a question from Raycast's root search |
 
 Mention `@delta` in Raycast AI to find and read threads in plain language.
+
+## Tips
+
+- Name the project, file or error in a question.
+- `⌘⇧M` changes the answer model.
+- Use **Ask Past Threads** as a [fallback command](https://manual.raycast.com/fallback-commands).
 
 ## Development
 
