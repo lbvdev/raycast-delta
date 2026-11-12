@@ -19,14 +19,11 @@ function listKeywords(keywords: string[]): string {
 }
 
 /**
- * The threads an answer came from. A thread-scoped answer always comes from that thread, even if
- * Delta doesn't list it.
+ * The threads an answer came from. An answer about chosen threads always comes from them, even if
+ * Delta doesn't list them.
  */
-export function getAnswerSources(result: QueryResult | undefined, thread?: QuerySource): QuerySource[] {
-  if (result?.sources.length) {
-    return result.sources;
-  }
-  return thread ? [thread] : [];
+export function getAnswerSources(result: QueryResult | undefined, threads: QuerySource[] = []): QuerySource[] {
+  return result?.sources.length ? result.sources : threads;
 }
 
 function describeError(error: Error, context: { model?: string; keywords: string[]; isThreadScoped: boolean }): string {
@@ -53,8 +50,8 @@ function describeError(error: Error, context: { model?: string; keywords: string
 export interface AnswerView {
   question: string;
   model?: string;
-  /** Title of the thread the question is about; omitted when asking across all threads. */
-  threadTitle?: string;
+  /** The thread or threads the question is about; omitted or empty when asking across all threads. */
+  threads?: QuerySource[];
   /** Keywords Delta picks threads by; only used when asking across all threads. */
   keywords: string[];
   result?: QueryResult;
@@ -62,14 +59,15 @@ export interface AnswerView {
 }
 
 /** True when a question across all threads has no word Delta could pick threads by. */
-export function isTooVague(view: Pick<AnswerView, "threadTitle" | "keywords">): boolean {
-  return view.threadTitle === undefined && view.keywords.length === 0;
+export function isTooVague(view: Pick<AnswerView, "threads" | "keywords">): boolean {
+  return !view.threads?.length && view.keywords.length === 0;
 }
 
 /** Markdown for the answer screen in every state: too vague, asking, answered, failed. */
 export function buildAnswerMarkdown(view: AnswerView): string {
-  const { question, model, threadTitle, keywords, result, error } = view;
-  const isThreadScoped = threadTitle !== undefined;
+  const { question, model, threads = [], keywords, result, error } = view;
+  const isThreadScoped = threads.length > 0;
+  const onlyThread = threads.length === 1 ? threads[0] : undefined;
 
   if (isTooVague(view)) {
     return [
@@ -79,19 +77,30 @@ export function buildAnswerMarkdown(view: AnswerView): string {
     ].join("\n\n");
   }
 
-  const scope = isThreadScoped ? `Thread: ${threadTitle}` : `Threads mentioning ${listKeywords(keywords)}`;
+  const scope = onlyThread
+    ? `Thread: ${onlyThread.name}`
+    : isThreadScoped
+      ? `Threads: ${threads.map((thread) => thread.name).join(", ")}`
+      : `Threads mentioning ${listKeywords(keywords)}`;
   const sections = [`## ${question}`, `_${scope} · Model: ${getModelName(model)}_`];
 
   if (result) {
     sections.push(result.answer || "_Delta didn't find an answer in these threads._");
-    if (!isThreadScoped && result.sources.length > 0) {
+    // One chosen thread needs no list; it's already named above.
+    if (!onlyThread && result.sources.length > 0) {
       const links = result.sources.map((source) => `- [${escapeLinkText(source.name)}](${getThreadDeeplink(source)})`);
       sections.push(`---\n\n**Sources**\n\n${links.join("\n")}`);
     }
   } else if (error) {
     sections.push(`> ${describeError(error, { model, keywords, isThreadScoped })}`);
   } else {
-    sections.push(isThreadScoped ? `_Delta is reading “${threadTitle}”…_` : "_Delta is reading your threads…_");
+    sections.push(
+      onlyThread
+        ? `_Delta is reading “${onlyThread.name}”…_`
+        : isThreadScoped
+          ? `_Delta is reading ${threads.length} threads…_`
+          : "_Delta is reading your threads…_",
+    );
   }
   return sections.join("\n\n");
 }

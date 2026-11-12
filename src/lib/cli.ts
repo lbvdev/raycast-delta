@@ -159,15 +159,19 @@ export class QuestionTooVagueError extends DeltaError {
 }
 
 /**
- * `delta thread query` refuses to run without a filter. With `threadId` Delta answers from that
- * thread; otherwise from threads matching the question's meaningful words. Without `model`, Delta
+ * `delta thread query` refuses to run without a filter. With `threadId` (one ID or several) Delta
+ * answers from those threads; otherwise from threads matching the question's meaningful words. Without `model`, Delta
  * uses the default model of the account's model registry.
  */
-export function buildQueryArgs(question: string, options: { threadId?: string; model?: string } = {}): string[] {
-  const { threadId, model } = options;
+export function buildQueryArgs(
+  question: string,
+  options: { threadId?: string | string[]; model?: string } = {},
+): string[] {
+  const { model } = options;
+  const threadIds = [options.threadId ?? []].flat();
   let scope: string[];
-  if (threadId) {
-    scope = ["--thread", threadId];
+  if (threadIds.length > 0) {
+    scope = threadIds.flatMap((id) => ["--thread", id]);
   } else {
     const keywords = buildKeywordGroup(question);
     if (!keywords) {

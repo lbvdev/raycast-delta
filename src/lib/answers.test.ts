@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildAnswerMarkdown, getAnswerSources, getModelName, isTooVague } from "./answers";
 import { DeltaError } from "./cli";
 
+const pantryPal = { id: "ksQQ-id", name: "PantryPal" };
+const waterBuddy = { id: "t1", name: "Water Buddy" };
+
 const result = {
   answer: "Back up the old history, then force push.",
   sources: [{ id: "ksQQ-id", name: "PantryPal [GitLab]" }],
@@ -15,15 +18,13 @@ describe("getModelName", () => {
 });
 
 describe("getAnswerSources", () => {
-  const thread = { id: "t1", name: "Water Buddy" };
-
   it("uses the sources Delta lists", () => {
-    expect(getAnswerSources(result, thread)).toEqual(result.sources);
+    expect(getAnswerSources(result, [waterBuddy])).toEqual(result.sources);
   });
 
-  it("falls back to the thread the question was about", () => {
-    expect(getAnswerSources({ answer: "Done.", sources: [] }, thread)).toEqual([thread]);
-    expect(getAnswerSources(undefined, thread)).toEqual([thread]);
+  it("falls back to the threads the question was about", () => {
+    expect(getAnswerSources({ answer: "Done.", sources: [] }, [waterBuddy])).toEqual([waterBuddy]);
+    expect(getAnswerSources(undefined, [waterBuddy, pantryPal])).toEqual([waterBuddy, pantryPal]);
     expect(getAnswerSources(undefined)).toEqual([]);
   });
 });
@@ -32,7 +33,8 @@ describe("isTooVague", () => {
   it("is true only for a question across all threads without keywords", () => {
     expect(isTooVague({ keywords: [] })).toBe(true);
     expect(isTooVague({ keywords: ["gitlab"] })).toBe(false);
-    expect(isTooVague({ threadTitle: "PantryPal", keywords: [] })).toBe(false);
+    expect(isTooVague({ threads: [pantryPal], keywords: [] })).toBe(false);
+    expect(isTooVague({ threads: [], keywords: [] })).toBe(true);
   });
 });
 
@@ -54,7 +56,7 @@ describe("buildAnswerMarkdown", () => {
   });
 
   it("names the thread for a question about one thread", () => {
-    const markdown = buildAnswerMarkdown({ question: "What's left to do?", keywords: [], threadTitle: "PantryPal" });
+    const markdown = buildAnswerMarkdown({ question: "What's left to do?", keywords: [], threads: [pantryPal] });
     expect(markdown).toContain("_Thread: PantryPal · Model: Delta's default_");
     expect(markdown).toContain("Delta is reading “PantryPal”");
   });
@@ -66,8 +68,16 @@ describe("buildAnswerMarkdown", () => {
   });
 
   it("doesn't list sources for a question about one thread", () => {
-    const markdown = buildAnswerMarkdown({ question, keywords: [], threadTitle: "PantryPal", result });
+    const markdown = buildAnswerMarkdown({ question, keywords: [], threads: [pantryPal], result });
     expect(markdown).not.toContain("Sources");
+  });
+
+  it("names every thread of a follow-up question and lists its sources", () => {
+    const threads = [pantryPal, waterBuddy];
+    const reading = buildAnswerMarkdown({ question: "And then?", keywords: [], threads });
+    expect(reading).toContain("_Threads: PantryPal, Water Buddy · Model: Delta's default_");
+    expect(reading).toContain("Delta is reading 2 threads");
+    expect(buildAnswerMarkdown({ question: "And then?", keywords: [], threads, result })).toContain("**Sources**");
   });
 
   it("says so when Delta returns an empty answer", () => {
@@ -82,7 +92,7 @@ describe("buildAnswerMarkdown", () => {
 
   it("explains a thread whose history can't be loaded", () => {
     const error = new DeltaError("unreadable-thread");
-    expect(buildAnswerMarkdown({ question, keywords: [], threadTitle: "Recorded conversation", error })).toContain(
+    expect(buildAnswerMarkdown({ question, keywords: [], threads: [pantryPal], error })).toContain(
       "can't load this thread's history",
     );
     expect(buildAnswerMarkdown({ question, keywords, error })).toContain("Ask About Thread");

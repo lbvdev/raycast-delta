@@ -17,6 +17,7 @@ import {
   toDeltaError,
   withJsonFlag,
 } from "./cli";
+import { demoThreadData, isDemoMode, runDemoCommand } from "./demo";
 import { DeltaUpdateCheck, Organization, QueryResult, Thread, ThreadSummary, Visibility } from "./types";
 
 const DELTA_BUNDLE_ID = "com.zed-industries.delta";
@@ -114,6 +115,9 @@ interface RunOptions {
 }
 
 async function runDelta(args: string[], options: RunOptions = {}): Promise<string> {
+  if (isDemoMode()) {
+    return runDemoCommand(args);
+  }
   const cliPath = await getDeltaCliPath();
   return new Promise((resolve, reject) => {
     execFile(
@@ -219,12 +223,12 @@ export async function openInDelta(target?: string): Promise<void> {
 }
 
 /**
- * Answers a question with a model on the user's Delta account: from one thread when `threadId`
- * is given, otherwise from the threads that mention the question's keywords.
+ * Answers a question with a model on the user's Delta account: from the given thread or threads when
+ * `threadId` is set, otherwise from the threads that mention the question's keywords.
  */
 export async function askDelta(
   question: string,
-  options: { threadId?: string; model?: string } = {},
+  options: { threadId?: string | string[]; model?: string } = {},
 ): Promise<QueryResult> {
   const stdout = await runDelta(buildQueryArgs(question, options), { timeout: TIMEOUT.answer });
   return parseQueryResult(stdout);
@@ -239,6 +243,10 @@ async function streamDelta(
   onChunk: (chunk: string) => void,
   options: RunOptions & { signal?: AbortSignal } = {},
 ): Promise<void> {
+  if (isDemoMode()) {
+    onChunk(demoThreadData(args.at(-1) ?? ""));
+    return;
+  }
   const cliPath = await getDeltaCliPath();
   return new Promise((resolve, reject) => {
     const child = spawn(cliPath, args, { stdio: ["ignore", "pipe", "pipe"], signal: options.signal });

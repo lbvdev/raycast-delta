@@ -164,6 +164,27 @@ describe("buildQueryArgs", () => {
   });
 });
 
+describe("buildQueryArgs with several threads", () => {
+  it("repeats --thread for each one, as a follow-up on an answer's sources does", () => {
+    expect(buildQueryArgs("And then?", { threadId: ["t1", "t2"], model: "a/b" })).toEqual([
+      "thread",
+      "query",
+      "--thread",
+      "t1",
+      "--thread",
+      "t2",
+      "--model",
+      "a/b",
+      "--",
+      "And then?",
+    ]);
+  });
+
+  it("falls back to keywords for an empty list", () => {
+    expect(buildQueryArgs("PantryPal status?", { threadId: [] })).toContain("--keyword");
+  });
+});
+
 describe("parseCliError", () => {
   it("returns the last stderr line without the delta: prefix", () => {
     // Real output of `delta thread archive does-not-exist` in Delta 0.25.0.

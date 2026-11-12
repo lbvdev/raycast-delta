@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Form, Icon, LaunchProps, popToRoot } from "@raycast/api";
+import { Action, ActionPanel, Form, getPreferenceValues, Icon, LaunchProps, popToRoot } from "@raycast/api";
 import { FormValidation, useCachedPromise, useForm } from "@raycast/utils";
 import { useEffect } from "react";
 import { withDelta } from "./components/with-delta";
@@ -13,8 +13,14 @@ interface FormValues {
   visibility: string;
 }
 
-function CreateThread(props: LaunchProps<{ draftValues: Partial<FormValues> }>) {
-  const { draftValues, fallbackText } = props;
+/** Set by Create Thread from Answer, which opens this command with the answer as the prompt. */
+interface LaunchContext {
+  prompt?: string;
+}
+
+function CreateThread(props: LaunchProps<{ draftValues: Partial<FormValues>; launchContext: LaunchContext }>) {
+  const { draftValues, fallbackText, launchContext } = props;
+  const { defaultVisibility } = getPreferenceValues<Preferences.CreateThread>();
   const { data: organizations, isLoading } = useCachedPromise(listOrganizations, [], {
     // The form still works without the list: Delta then uses its current organization.
     onError: (error) => showDeltaFailure(error, "Couldn't load Delta organizations"),
@@ -22,9 +28,10 @@ function CreateThread(props: LaunchProps<{ draftValues: Partial<FormValues> }>) 
 
   const { handleSubmit, itemProps, values, setValue } = useForm<FormValues>({
     initialValues: {
-      prompt: draftValues?.prompt ?? fallbackText ?? "",
+      // A prompt handed over on launch is what the user just asked for, so it wins over an older draft.
+      prompt: launchContext?.prompt ?? draftValues?.prompt ?? fallbackText ?? "",
       organizationId: draftValues?.organizationId ?? "",
-      visibility: draftValues?.visibility ?? "private",
+      visibility: draftValues?.visibility ?? defaultVisibility,
     },
     validation: {
       prompt: FormValidation.Required,

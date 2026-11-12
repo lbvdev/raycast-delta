@@ -4,8 +4,9 @@ import { deleteThread, forkThread, setThreadArchived, shareThreadWithOrganizatio
 import { openThreadInDelta, runWithToast } from "../lib/feedback";
 import { getThreadTitle, getThreadWebUrl } from "../lib/threads";
 import { Thread } from "../lib/types";
-import { AskAboutThread } from "./ask-about-thread";
+import { AskAboutThreads } from "./ask-about-threads";
 import { ChangeModelAction } from "./change-model-action";
+import { DemoDataAction } from "./demo-data-action";
 import { InviteForm } from "./invite-form";
 
 interface ThreadActionsProps {
@@ -100,7 +101,7 @@ export function ThreadActions({ thread, threads, detail }: ThreadActionsProps) {
           title="Ask About Thread"
           icon={Icon.Stars}
           shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}
-          target={<AskAboutThread thread={thread} />}
+          target={<AskAboutThreads threads={[{ id: thread.id, name: title }]} />}
         />
         {detail && (
           <Action
@@ -163,6 +164,7 @@ export function ThreadActions({ thread, threads, detail }: ThreadActionsProps) {
           onAction={revalidate}
         />
         <ChangeModelAction />
+        <DemoDataAction onChange={revalidate} />
       </ActionPanel.Section>
     </ActionPanel>
   );

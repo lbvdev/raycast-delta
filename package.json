@@ -19,14 +19,58 @@
       "title": "Search Threads",
       "subtitle": "Delta",
       "description": "Search your Delta threads, then open, share, fork or archive them, or ask Delta a question about them",
-      "mode": "view"
+      "mode": "view",
+      "preferences": [
+        {
+          "name": "defaultFilter",
+          "title": "Default Filter",
+          "description": "Which threads Search Threads shows when it opens",
+          "type": "dropdown",
+          "required": false,
+          "default": "active",
+          "data": [
+            {
+              "title": "Active",
+              "value": "active"
+            },
+            {
+              "title": "Archived",
+              "value": "archived"
+            },
+            {
+              "title": "All Threads",
+              "value": "all"
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "create-thread",
       "title": "Create Thread",
       "subtitle": "Delta",
       "description": "Create a Delta thread with a draft prompt and open it in Delta to review and send",
-      "mode": "view"
+      "mode": "view",
+      "preferences": [
+        {
+          "name": "defaultVisibility",
+          "title": "Default Visibility",
+          "description": "Who can open a new thread unless you choose otherwise in the form",
+          "type": "dropdown",
+          "required": false,
+          "default": "private",
+          "data": [
+            {
+              "title": "Private",
+              "value": "private"
+            },
+            {
+              "title": "Organization",
+              "value": "organization"
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "open-with-delta",
@@ -326,6 +370,7 @@
     "lint": "ray lint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
     "publish": "npx @raycast/api@latest publish"
   }
 }

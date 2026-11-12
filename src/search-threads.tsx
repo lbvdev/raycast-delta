@@ -1,8 +1,9 @@
-import { Action, ActionPanel, Icon, Keyboard, List } from "@raycast/api";
+import { Action, ActionPanel, getPreferenceValues, Icon, Keyboard, List } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
 import { useMemo, useState } from "react";
 import { ChangeModelAction } from "./components/change-model-action";
 import { DeltaUpdateSection } from "./components/delta-update-section";
+import { DemoDataAction } from "./components/demo-data-action";
 import { CreateThreadAction, ThreadActions } from "./components/thread-actions";
 import { ThreadAnswer } from "./components/thread-answer";
 import { ThreadListItem } from "./components/thread-list-item";
@@ -28,7 +29,8 @@ const FILTER_EMPTY_TITLES: Record<ThreadFilter, string> = {
 };
 
 function SearchThreads() {
-  const [filter, setFilter] = useCachedState<ThreadFilter>("thread-filter", "active");
+  // Each launch starts from the filter set in the command's preferences.
+  const [filter, setFilter] = useState<ThreadFilter>(getPreferenceValues<Preferences.SearchThreads>().defaultFilter);
   const [isShowingDetail, setIsShowingDetail] = useCachedState("show-thread-details", true);
   const [searchText, setSearchText] = useState("");
   const threadsState = useThreads();
@@ -82,6 +84,7 @@ function SearchThreads() {
                 shortcut={Keyboard.Shortcut.Common.Refresh}
                 onAction={revalidate}
               />
+              <DemoDataAction onChange={revalidate} />
             </ActionPanel>
           }
         />
@@ -136,6 +139,7 @@ function LoadErrorView({ error, onRetry }: { error: Error; onRetry: () => void }
             shortcut={Keyboard.Shortcut.Common.Refresh}
             onAction={onRetry}
           />
+          <DemoDataAction onChange={onRetry} />
         </ActionPanel>
       }
     />
