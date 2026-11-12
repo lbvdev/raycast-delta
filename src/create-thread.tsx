@@ -1,9 +1,9 @@
-import { Action, ActionPanel, Form, Icon, LaunchProps, showHUD, showToast, Toast } from "@raycast/api";
-import { FormValidation, showFailureToast, useCachedPromise, useForm } from "@raycast/utils";
+import { Action, ActionPanel, Form, Icon, LaunchProps, popToRoot } from "@raycast/api";
+import { FormValidation, useCachedPromise, useForm } from "@raycast/utils";
 import { useEffect } from "react";
 import { withDelta } from "./components/with-delta";
-import { createThread, listOrganizations, openInDelta } from "./lib/delta";
-import { getThreadDeeplink } from "./lib/threads";
+import { createThread, listOrganizations } from "./lib/delta";
+import { openThreadInDelta, runWithToast, showDeltaFailure } from "./lib/feedback";
 import { Visibility } from "./lib/types";
 
 interface FormValues {
@@ -16,7 +16,8 @@ interface FormValues {
 function CreateThread(props: LaunchProps<{ draftValues: Partial<FormValues> }>) {
   const { draftValues, fallbackText } = props;
   const { data: organizations, isLoading } = useCachedPromise(listOrganizations, [], {
-    failureToastOptions: { title: "Couldn't load Delta organizations" },
+    // The form still works without the list: Delta then uses its current organization.
+    onError: (error) => showDeltaFailure(error, "Couldn't load Delta organizations"),
   });
 
   const { handleSubmit, itemProps, values, setValue } = useForm<FormValues>({
@@ -29,18 +30,20 @@ function CreateThread(props: LaunchProps<{ draftValues: Partial<FormValues> }>) 
       prompt: FormValidation.Required,
     },
     async onSubmit(form) {
-      const toast = await showToast({ style: Toast.Style.Animated, title: "Creating thread" });
-      try {
-        const threadId = await createThread({
-          prompt: form.prompt.trim(),
-          organizationId: form.organizationId || undefined,
-          visibility: form.visibility as Visibility,
-        });
-        await openInDelta(getThreadDeeplink({ id: threadId }));
-        await toast.hide();
-        await showHUD("Thread created in Delta");
-      } catch (e) {
-        await showFailureToast(e, { title: "Couldn't create thread" });
+      const created = await runWithToast(
+        { progress: "Creating thread", success: "Thread created", failure: "Couldn't create thread" },
+        async () => {
+          const threadId = await createThread({
+            prompt: form.prompt.trim(),
+            organizationId: form.organizationId || undefined,
+            visibility: form.visibility as Visibility,
+          });
+          await openThreadInDelta({ id: threadId });
+        },
+      );
+      if (created) {
+        // Leave an empty form behind, not the prompt that was just used.
+        await popToRoot({ clearSearchBar: true });
       }
     },
   });
@@ -55,6 +58,8 @@ function CreateThread(props: LaunchProps<{ draftValues: Partial<FormValues> }>) 
       setValue("organizationId", (organizations.find((org) => org.current) ?? organizations[0]).id);
     }
   }, [organizations]);
+
+  const organizationName = organizations?.find((org) => org.id === values.organizationId)?.name;
 
   return (
     <Form
@@ -74,14 +79,28 @@ function CreateThread(props: LaunchProps<{ draftValues: Partial<FormValues> }>) 
         {...itemProps.prompt}
       />
       <Form.Separator />
-      <Form.Dropdown title="Organization" info="The organization that owns the thread" {...itemProps.organizationId}>
+      <Form.Dropdown
+        title="Organization"
+        placeholder="Search organizations"
+        info="The organization that owns the thread"
+        {...itemProps.organizationId}
+      >
         {(organizations ?? []).map((org) => (
           <Form.Dropdown.Item key={org.id} value={org.id} title={org.name} icon={Icon.Building} />
         ))}
       </Form.Dropdown>
-      <Form.Dropdown title="Visibility" {...itemProps.visibility}>
-        <Form.Dropdown.Item value="private" title="Private" icon={Icon.Lock} />
-        <Form.Dropdown.Item value="organization" title="Organization" icon={Icon.TwoPeople} />
+      <Form.Dropdown
+        title="General Access"
+        placeholder="Search access options"
+        info="Who can open the thread besides the people you invite. Delta's “Anyone with the Link” option is only in the app."
+        {...itemProps.visibility}
+      >
+        <Form.Dropdown.Item value="private" title="Only People Invited" icon={Icon.Lock} />
+        <Form.Dropdown.Item
+          value="organization"
+          title={organizationName ? `Everyone at ${organizationName}` : "Everyone in the Organization"}
+          icon={Icon.Building}
+        />
       </Form.Dropdown>
     </Form>
   );

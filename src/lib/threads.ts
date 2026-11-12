@@ -39,3 +39,24 @@ export function buildThreadMarkdown(thread: Thread): string {
   }
   return sections.join("\n\n");
 }
+
+/**
+ * True when every word of the search text appears in the thread's title, generated title,
+ * summary or keywords. Case-insensitive; an empty search matches everything.
+ */
+export function threadMatchesSearch(thread: Thread, searchText: string): boolean {
+  const words = searchText.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return true;
+  }
+  const haystack = [thread.name, thread.generated_title, thread.summary, ...thread.keywords]
+    .filter(Boolean)
+    .join("\n")
+    .toLowerCase();
+  return words.every((word) => haystack.includes(word));
+}
+
+/** The question is long enough to be worth sending to a model. */
+export function isAskableQuestion(text: string): boolean {
+  return text.trim().length >= 3;
+}

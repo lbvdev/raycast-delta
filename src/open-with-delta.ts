@@ -1,6 +1,7 @@
-import { closeMainWindow, getSelectedFinderItems, open, showToast, Toast } from "@raycast/api";
-import { runAppleScript, showFailureToast } from "@raycast/utils";
-import { DELTA_DOWNLOAD_URL, DeltaNotInstalledError, openInDelta } from "./lib/delta";
+import { closeMainWindow, getSelectedFinderItems, showToast, Toast } from "@raycast/api";
+import { runAppleScript } from "@raycast/utils";
+import { openInDelta } from "./lib/delta";
+import { showDeltaFailure } from "./lib/feedback";
 
 async function getFrontFinderFolder(): Promise<string | undefined> {
   const path = await runAppleScript(`
@@ -33,7 +34,7 @@ export default async function OpenWithDelta() {
       await showToast({
         style: Toast.Style.Failure,
         title: "No Finder item selected",
-        message: "Select a file or folder in Finder and try again.",
+        message: "Select a file or folder in Finder, then try again",
       });
       return;
     }
@@ -41,14 +42,7 @@ export default async function OpenWithDelta() {
     for (const path of paths) {
       await openInDelta(path);
     }
-  } catch (e) {
-    if (e instanceof DeltaNotInstalledError) {
-      await showFailureToast(e, {
-        title: "Delta is not installed",
-        primaryAction: { title: "Download Delta", onAction: () => open(DELTA_DOWNLOAD_URL) },
-      });
-      return;
-    }
-    await showFailureToast(e, { title: "Couldn't open in Delta" });
+  } catch (error) {
+    await showDeltaFailure(error, "Couldn't open in Delta");
   }
 }

@@ -1,10 +1,11 @@
 import { useCachedPromise } from "@raycast/utils";
 import { listThreads } from "../lib/delta";
+import { showDeltaFailure } from "../lib/feedback";
 
 /** All local Delta threads, cached between launches and refreshed in the background. */
 export function useThreads() {
   return useCachedPromise(listThreads, [], {
-    failureToastOptions: { title: "Couldn't load Delta threads" },
+    onError: (error) => showDeltaFailure(error, "Couldn't load Delta threads"),
   });
 }
 

@@ -1,19 +1,12 @@
-import {
-  Action,
-  ActionPanel,
-  Alert,
-  closeMainWindow,
-  confirmAlert,
-  Icon,
-  Keyboard,
-  showToast,
-  Toast,
-} from "@raycast/api";
-import { showFailureToast } from "@raycast/utils";
+import { Action, ActionPanel, Alert, confirmAlert, Icon, Keyboard, launchCommand, LaunchType } from "@raycast/api";
 import { ThreadsState } from "../hooks/use-threads";
-import { openInDelta, setThreadArchived, shareThreadWithOrganization } from "../lib/delta";
-import { getThreadDeeplink, getThreadTitle, getThreadWebUrl } from "../lib/threads";
+import { deleteThread, forkThread, setThreadArchived, shareThreadWithOrganization, unshareThread } from "../lib/delta";
+import { openThreadInDelta, runWithToast } from "../lib/feedback";
+import { getThreadTitle, getThreadWebUrl } from "../lib/threads";
 import { Thread } from "../lib/types";
+import { AskAboutThread } from "./ask-about-thread";
+import { ChangeModelAction } from "./change-model-action";
+import { InviteForm } from "./invite-form";
 
 interface ThreadActionsProps {
   thread: Thread;
@@ -29,56 +22,86 @@ export function ThreadActions({ thread, threads, detail }: ThreadActionsProps) {
   const webUrl = getThreadWebUrl(thread);
   const title = getThreadTitle(thread);
 
-  async function open() {
-    await closeMainWindow({ clearRootSearch: true });
-    try {
-      await openInDelta(getThreadDeeplink(thread));
-    } catch (e) {
-      await showFailureToast(e, { title: "Couldn't open thread in Delta" });
-    }
-  }
-
   async function toggleArchived() {
     const archived = !thread.archived;
-    const toast = await showToast({
-      style: Toast.Style.Animated,
-      title: archived ? "Archiving thread" : "Unarchiving thread",
-    });
-    try {
-      await mutate(setThreadArchived(thread, archived), {
-        optimisticUpdate: (current) => current?.map((t) => (t.id === thread.id ? { ...t, archived } : t)),
-      });
-      toast.style = Toast.Style.Success;
-      toast.title = archived ? "Thread archived" : "Thread unarchived";
-    } catch (e) {
-      await showFailureToast(e, { title: archived ? "Couldn't archive thread" : "Couldn't unarchive thread" });
-    }
+    await runWithToast(
+      archived
+        ? { progress: "Archiving thread", success: "Thread archived", failure: "Couldn't archive thread" }
+        : { progress: "Unarchiving thread", success: "Thread unarchived", failure: "Couldn't unarchive thread" },
+      () =>
+        mutate(setThreadArchived(thread, archived), {
+          optimisticUpdate: (current) => current?.map((t) => (t.id === thread.id ? { ...t, archived } : t)),
+        }),
+    );
   }
 
   async function share() {
     const confirmed = await confirmAlert({
-      title: "Share with Organization?",
-      message: `Everyone in your current Delta organization will be able to open “${title}” and its files.`,
+      title: "Share with Everyone in the Organization?",
+      message: `Everyone in the Delta organization that owns “${title}” will be able to open it and its files.`,
       primaryAction: { title: "Share", style: Alert.ActionStyle.Default },
     });
-    if (!confirmed) {
-      return;
+    if (confirmed) {
+      await runWithToast(
+        { progress: "Sharing thread", success: "Thread shared with organization", failure: "Couldn't share thread" },
+        () => mutate(shareThreadWithOrganization(thread)),
+      );
     }
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Sharing thread" });
-    try {
-      await mutate(shareThreadWithOrganization(thread));
-      toast.style = Toast.Style.Success;
-      toast.title = "Thread shared with organization";
-    } catch (e) {
-      await showFailureToast(e, { title: "Couldn't share thread" });
+  }
+
+  async function makePrivate() {
+    await runWithToast(
+      {
+        progress: "Making thread private",
+        success: "Only invited people can open the thread",
+        failure: "Couldn't make thread private",
+      },
+      () => mutate(unshareThread(thread)),
+    );
+  }
+
+  async function fork() {
+    await runWithToast(
+      { progress: "Forking thread", success: "Thread forked", failure: "Couldn't fork thread" },
+      async () => {
+        const forkId = await forkThread(thread);
+        await revalidate();
+        // Delta doesn't promise to report the fork's ID; without it the fork just appears in the list.
+        if (forkId) {
+          await openThreadInDelta({ id: forkId });
+        }
+      },
+    );
+  }
+
+  async function remove() {
+    const confirmed = await confirmAlert({
+      title: "Delete Thread?",
+      message: `Deletes “${title}”, its local files that no other thread uses, and its Cloud Runner. This can't be undone.`,
+      primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+    });
+    if (confirmed) {
+      await runWithToast(
+        { progress: "Deleting thread", success: "Thread deleted", failure: "Couldn't delete thread" },
+        () =>
+          mutate(deleteThread(thread), {
+            optimisticUpdate: (current) => current?.filter((t) => t.id !== thread.id),
+          }),
+      );
     }
   }
 
   return (
     <ActionPanel>
       <ActionPanel.Section>
-        <Action title="Open in Delta" icon={Icon.AppWindow} onAction={open} />
+        <Action title="Open in Delta" icon={Icon.AppWindow} onAction={() => openThreadInDelta(thread)} />
         {webUrl && <Action.OpenInBrowser url={webUrl} shortcut={Keyboard.Shortcut.Common.Open} />}
+        <Action.Push
+          title="Ask About Thread"
+          icon={Icon.Stars}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}
+          target={<AskAboutThread thread={thread} />}
+        />
         {detail && (
           <Action
             title={detail.isShowing ? "Hide Details" : "Show Details"}
@@ -99,11 +122,23 @@ export function ThreadActions({ thread, threads, detail }: ThreadActionsProps) {
         />
       </ActionPanel.Section>
       <ActionPanel.Section>
+        <ActionPanel.Submenu title="Share" icon={Icon.TwoPeople} shortcut={{ modifiers: ["cmd", "shift"], key: "u" }}>
+          <Action.Push
+            title="Invite People"
+            icon={Icon.AddPerson}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
+            target={<InviteForm thread={thread} onInvited={revalidate} />}
+          />
+          <ActionPanel.Section title="General Access">
+            <Action title="Only People Invited" icon={Icon.Lock} onAction={makePrivate} />
+            <Action title="Everyone in the Organization" icon={Icon.Building} onAction={share} />
+          </ActionPanel.Section>
+        </ActionPanel.Submenu>
         <Action
-          title="Share with Organization"
-          icon={Icon.TwoPeople}
-          shortcut={{ modifiers: ["cmd", "shift"], key: "u" }}
-          onAction={share}
+          title="Fork Thread"
+          icon={Icon.Shuffle}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "f" }}
+          onAction={fork}
         />
         <Action
           title={thread.archived ? "Unarchive Thread" : "Archive Thread"}
@@ -111,15 +146,36 @@ export function ThreadActions({ thread, threads, detail }: ThreadActionsProps) {
           shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
           onAction={toggleArchived}
         />
+        <Action
+          title="Delete Thread"
+          icon={Icon.Trash}
+          style={Action.Style.Destructive}
+          shortcut={Keyboard.Shortcut.Common.Remove}
+          onAction={remove}
+        />
       </ActionPanel.Section>
       <ActionPanel.Section>
+        <CreateThreadAction />
         <Action
           title="Refresh Threads"
           icon={Icon.ArrowClockwise}
           shortcut={Keyboard.Shortcut.Common.Refresh}
           onAction={revalidate}
         />
+        <ChangeModelAction />
       </ActionPanel.Section>
     </ActionPanel>
+  );
+}
+
+/** Opens the Create Thread command; shared by every panel in Search Threads. */
+export function CreateThreadAction() {
+  return (
+    <Action
+      title="Create Thread"
+      icon={Icon.Plus}
+      shortcut={Keyboard.Shortcut.Common.New}
+      onAction={() => launchCommand({ name: "create-thread", type: LaunchType.UserInitiated })}
+    />
   );
 }

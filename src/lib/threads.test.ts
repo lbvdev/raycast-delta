@@ -5,7 +5,9 @@ import {
   getThreadDeeplink,
   getThreadTitle,
   getThreadWebUrl,
+  isAskableQuestion,
   sortThreadsNewestFirst,
+  threadMatchesSearch,
 } from "./threads";
 import { Thread } from "./types";
 
@@ -77,5 +79,34 @@ describe("buildThreadMarkdown", () => {
   it("explains when there's no summary and skips a duplicate generated title", () => {
     const markdown = buildThreadMarkdown(makeThread({ generated_title: "PantryPal" }));
     expect(markdown).toBe("## PantryPal\n\nDelta hasn't summarized this thread yet.");
+  });
+});
+
+describe("threadMatchesSearch", () => {
+  const thread = makeThread({
+    name: "PantryPal",
+    generated_title: "Fix shallow update",
+    summary: "Push to GitLab is blocked.",
+    keywords: ["force push"],
+  });
+
+  it("matches every word across title, generated title, summary and keywords", () => {
+    expect(threadMatchesSearch(thread, "pantrypal gitlab")).toBe(true);
+    expect(threadMatchesSearch(thread, "SHALLOW force")).toBe(true);
+  });
+
+  it("requires all words to match", () => {
+    expect(threadMatchesSearch(thread, "pantrypal android")).toBe(false);
+  });
+
+  it("matches everything for blank search text", () => {
+    expect(threadMatchesSearch(thread, "   ")).toBe(true);
+  });
+});
+
+describe("isAskableQuestion", () => {
+  it("needs at least three non-space characters", () => {
+    expect(isAskableQuestion(" ab ")).toBe(false);
+    expect(isAskableQuestion("why")).toBe(true);
   });
 });
