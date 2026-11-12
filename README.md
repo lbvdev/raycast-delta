@@ -14,10 +14,10 @@
   <a href="https://delta.dev"><img src="media/delta.svg" height="28" alt="Delta"></a>
   <a href="https://www.raycast.com"><img src="media/raycast.svg" height="28" alt="Raycast Extension"></a>
 </p>
-<p align="center"><sub>Tested on Delta 0.25</sub></p>
-
 
 ![Delta commands in Raycast](media/screenshot.png)
+
+<p align="center"><sub>Tested on Delta 0.25</sub></p>
 
 ### Requirements
 
