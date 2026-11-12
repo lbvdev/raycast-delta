@@ -7,38 +7,35 @@
 <p align="center">
   Search, ask and start <a href="https://delta.dev">delta.dev</a> threads
 </p>
-
 <p align="center">
   <a href="https://delta.dev"><img src=".github/badges/delta.svg" height="28" alt="Delta"></a>
   <a href="https://www.raycast.com"><img src=".github/badges/raycast.svg" height="28" alt="Raycast Extension"></a>
 </p>
+<p align="center"><sub>Tested on Delta 0.25</sub></p>
 
-<p align="center"><sub>──── Tested on Delta 0.25 ────</sub></p>
 
 <!-- add a screenshot -->
 
-## Requirements
+### Requirements
 
-Delta installed and signed in. Nothing else to set up.
+Install [Delta](https://delta.dev/download) and sign in
 
-## Commands
+---
+
+### Commands
 
 | Command | What it does |
 | --- | --- |
 | Search Threads | Find a thread, open it, share it, or ask about it |
 | Create Thread | Start a thread with a draft prompt |
 | Open with Delta | Open the Finder selection in Delta |
-| Ask Past Threads | Ask a question from Raycast's root search |
+| Ask Past Threads | Ask from root search, best as a [fallback command](https://manual.raycast.com/fallback-commands) |
 
-Mention `@delta` in Raycast AI to find and read threads in plain language.
+Ask @delta in Raycast AI about your threads
 
-## Tips
+---
 
-- Name the project, file or error in a question.
-- `⌘⇧M` changes the answer model.
-- Use **Ask Past Threads** as a [fallback command](https://manual.raycast.com/fallback-commands).
-
-## Development
+### Development
 
 Сontribute!!!
 
@@ -47,4 +44,4 @@ Mention `@delta` in Raycast AI to find and read threads in plain language.
 
 ---
 
-<sub>Not affiliated with Zed Industries. Delta is a trademark of its owner.</sub>
+<sub>Not affiliated with Zed Industries</sub>
