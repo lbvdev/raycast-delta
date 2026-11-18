@@ -6,10 +6,11 @@ import {
   getThreadTitle,
   getThreadWebUrl,
   isAskableQuestion,
+  pickThreadsForQuestion,
   sortThreadsNewestFirst,
   threadMatchesSearch,
-} from "./threads";
-import { Thread } from "./types";
+} from "../extension/src/lib/threads";
+import { Thread } from "../extension/src/lib/types";
 
 function makeThread(overrides: Partial<Thread> = {}): Thread {
   return {
@@ -71,7 +72,11 @@ describe("filterThreads and sortThreadsNewestFirst", () => {
 describe("buildThreadMarkdown", () => {
   it("includes the generated title, summary and goals", () => {
     const markdown = buildThreadMarkdown(
-      makeThread({ generated_title: "Fix push", summary: "Push is blocked.", intents: ["Keep history"] }),
+      makeThread({
+        generated_title: "Fix push",
+        summary: "Push is blocked.",
+        intents: ["Keep history"],
+      }),
     );
     expect(markdown).toBe("## PantryPal\n\n_Fix push_\n\nPush is blocked.\n\n### Goals\n\n- Keep history");
   });
@@ -108,5 +113,59 @@ describe("isAskableQuestion", () => {
   it("needs at least three non-space characters", () => {
     expect(isAskableQuestion(" ab ")).toBe(false);
     expect(isAskableQuestion("why")).toBe(true);
+  });
+});
+
+describe("pickThreadsForQuestion", () => {
+  const threads = [
+    makeThread({
+      id: "old",
+      index: 0,
+      name: "GitLab mirror",
+      summary: "Push to GitLab on release",
+    }),
+    makeThread({
+      id: "new",
+      index: 1,
+      name: "Release notes",
+      summary: "Mentions the GitLab push once",
+    }),
+    makeThread({
+      id: "goal",
+      index: 2,
+      name: "Infra",
+      intents: ["Set up a GitLab runner"],
+    }),
+    makeThread({
+      id: "other",
+      index: 3,
+      name: "Onboarding",
+      keywords: ["docs"],
+    }),
+  ];
+
+  it("ranks title matches above other matches, newest first on a tie", () => {
+    expect(pickThreadsForQuestion(threads, ["gitlab", "push"]).map((thread) => thread.id)).toEqual([
+      "old",
+      "new",
+      "goal",
+    ]);
+    expect(pickThreadsForQuestion(threads, ["gitlab"]).map((thread) => thread.id)).toEqual(["old", "goal", "new"]);
+  });
+
+  it("matches the generated title, keywords and goals too", () => {
+    const generated = makeThread({
+      id: "gen",
+      name: "",
+      generated_title: "Fix the GitLab push",
+    });
+    expect(pickThreadsForQuestion([generated], ["gitlab"])).toHaveLength(1);
+    expect(pickThreadsForQuestion(threads, ["docs"]).map((thread) => thread.id)).toEqual(["other"]);
+  });
+
+  it("keeps at most the limit, and nothing without keywords or matches", () => {
+    expect(pickThreadsForQuestion(threads, ["gitlab"], 2)).toHaveLength(2);
+    expect(pickThreadsForQuestion(threads, [])).toEqual([]);
+    expect(pickThreadsForQuestion(threads, ["kubernetes"])).toEqual([]);
   });
 });

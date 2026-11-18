@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCreateThreadArgs,
-  buildKeywordGroup,
   buildQueryArgs,
   classifyCliError,
   countModelUses,
@@ -20,12 +19,11 @@ import {
   parseQueryResult,
   parseSignedIn,
   parseUpdateCheck,
-  QuestionTooVagueError,
   rankModels,
   stemKeyword,
   toDeltaError,
   withJsonFlag,
-} from "./cli";
+} from "../extension/src/lib/cli";
 
 describe("buildCreateThreadArgs", () => {
   it("passes the prompt as a single --prompt= argument so leading dashes aren't flags", () => {
@@ -39,35 +37,41 @@ describe("buildCreateThreadArgs", () => {
   });
 
   it("adds the organization only when one is chosen", () => {
-    expect(buildCreateThreadArgs({ prompt: "Hi", visibility: "organization", organizationId: "org_1" })).toEqual([
-      "thread",
-      "create",
-      "--prompt=Hi",
-      "--visibility",
-      "organization",
-      "--organization",
-      "org_1",
-    ]);
+    expect(
+      buildCreateThreadArgs({
+        prompt: "Hi",
+        visibility: "organization",
+        organizationId: "org_1",
+      }),
+    ).toEqual(["thread", "create", "--prompt=Hi", "--visibility", "organization", "--organization", "org_1"]);
   });
 });
 
-describe("buildKeywordGroup", () => {
+describe("extractKeywords on questions", () => {
   it("keeps meaningful words and drops question words, short words and duplicates", () => {
-    expect(buildKeywordGroup("What did we decide about the PantryPal push? Push again!")).toBe(
-      "decide|pantrypal|push|again",
-    );
+    expect(extractKeywords("What did we decide about the PantryPal push? Push again!")).toEqual([
+      "decide",
+      "pantrypal",
+      "push",
+      "again",
+    ]);
   });
 
   it("handles Russian questions, stemming inflected words", () => {
-    expect(buildKeywordGroup("Что мы решили про shallow update в PantryPal?")).toBe("решил|shallow|update|pantrypal");
+    expect(extractKeywords("Что мы решили про shallow update в PantryPal?")).toEqual([
+      "решил",
+      "shallow",
+      "update",
+      "pantrypal",
+    ]);
   });
 
   it("keeps file names and paths but trims trailing punctuation", () => {
-    expect(buildKeywordGroup("Why did src/lib/delta.ts change.")).toBe("src/lib/delta.ts|change");
+    expect(extractKeywords("Why did src/lib/delta.ts change.")).toEqual(["src/lib/delta.ts", "change"]);
   });
 
-  it("returns undefined when nothing specific is left", () => {
-    expect(buildKeywordGroup("what is it?")).toBeUndefined();
+  it("returns nothing when nothing specific is left", () => {
+    expect(extractKeywords("what is it?")).toEqual([]);
   });
 });
 
@@ -123,32 +127,24 @@ describe("extractKeywords", () => {
 });
 
 describe("buildQueryArgs", () => {
-  it("filters by the question's keywords and separates the question with --", () => {
-    expect(buildQueryArgs("-v PantryPal status?")).toEqual([
+  it("separates the question with --, so it can't be read as an option", () => {
+    expect(buildQueryArgs("-v PantryPal status?", { threadId: "t1" })).toEqual([
       "thread",
       "query",
-      "--keyword",
-      "pantrypal|status",
+      "--thread",
+      "t1",
       "--",
       "-v PantryPal status?",
     ]);
   });
 
-  it("refuses vague questions, which Delta can't filter threads for", () => {
-    expect(() => buildQueryArgs("what is it?")).toThrow(QuestionTooVagueError);
-  });
-
   it("passes the chosen model, and none by default", () => {
-    expect(buildQueryArgs("Status?", { threadId: "t1", model: "anthropic/claude-sonnet-4-6" })).toEqual([
-      "thread",
-      "query",
-      "--thread",
-      "t1",
-      "--model",
-      "anthropic/claude-sonnet-4-6",
-      "--",
-      "Status?",
-    ]);
+    expect(
+      buildQueryArgs("Status?", {
+        threadId: "t1",
+        model: "anthropic/claude-sonnet-4-6",
+      }),
+    ).toEqual(["thread", "query", "--thread", "t1", "--model", "anthropic/claude-sonnet-4-6", "--", "Status?"]);
     expect(buildQueryArgs("Status?", { threadId: "t1" })).not.toContain("--model");
   });
 
@@ -180,8 +176,8 @@ describe("buildQueryArgs with several threads", () => {
     ]);
   });
 
-  it("falls back to keywords for an empty list", () => {
-    expect(buildQueryArgs("PantryPal status?", { threadId: [] })).toContain("--keyword");
+  it("refuses an empty list, since Delta 0.27 only answers from named threads", () => {
+    expect(() => buildQueryArgs("PantryPal status?", { threadId: [] })).toThrow(DeltaError);
   });
 });
 
@@ -215,7 +211,6 @@ describe("DeltaError", () => {
     expect(isDeltaError(error, "timeout")).toBe(true);
     expect(isDeltaError(error, "not-installed")).toBe(false);
     expect(isDeltaError(new Error("timeout"))).toBe(false);
-    expect(isDeltaError(new QuestionTooVagueError(), "vague-question")).toBe(true);
   });
 });
 
@@ -329,12 +324,18 @@ describe("parseQueryResult", () => {
   });
 
   it("skips malformed sources and names unnamed ones", () => {
-    const stdout = JSON.stringify({ answer: "Yes", sources: [{ id: "a", name: " " }, { name: "no id" }, null] });
+    const stdout = JSON.stringify({
+      answer: "Yes",
+      sources: [{ id: "a", name: " " }, { name: "no id" }, null],
+    });
     expect(parseQueryResult(stdout).sources).toEqual([{ id: "a", name: "Untitled Thread" }]);
   });
 
   it("treats non-JSON output as a plain-text answer", () => {
-    expect(parseQueryResult("  Plain answer\n")).toEqual({ answer: "Plain answer", sources: [] });
+    expect(parseQueryResult("  Plain answer\n")).toEqual({
+      answer: "Plain answer",
+      sources: [],
+    });
   });
 });
 
